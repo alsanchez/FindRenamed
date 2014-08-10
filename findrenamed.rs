@@ -3,7 +3,7 @@ use std::io::File;
 use std::collections::HashMap;
 use std::os;
 
-fn examine_files(directory_path: &Path, map: &mut HashMap<(u64,u64), Box<String>>) {
+fn examine_files(directory_path: &Path, map: &mut HashMap<(u64,u64), String>) {
 
     let entries = fs::readdir(directory_path);
 
@@ -19,7 +19,7 @@ fn examine_files(directory_path: &Path, map: &mut HashMap<(u64,u64), Box<String>
             let stat = entry.stat();
             if stat.is_ok() {
                 let unwrapped_stat = stat.unwrap();
-                map.insert((unwrapped_stat.size, unwrapped_stat.modified), box path.to_string());
+                map.insert((unwrapped_stat.size, unwrapped_stat.modified), path.to_string());
             }
         }
     }
@@ -46,14 +46,14 @@ fn main() {
     let src_directory = Path::new(args[1].clone());
     let dst_directory = Path::new(args[2].clone());
         
-    let mut src_map = HashMap::<(u64, u64), Box<String>>::new();
+    let mut src_map = HashMap::<(u64, u64), String>::new();
     examine_files(&src_directory, &mut src_map);
-    let mut new_map = HashMap::<(u64, u64), Box<String>>::new();
+    let mut new_map = HashMap::<(u64, u64), String>::new();
     examine_files(&dst_directory, &mut new_map);
     for (key, value) in new_map.iter() {
         if src_map.contains_key(key) {
-            let src_path = Path::new(*src_map.get(key).clone());
-            let new_path = Path::new(*value.clone());
+            let src_path = Path::new(src_map.get(key).clone());
+            let new_path = Path::new(value.clone());
             if compare_files(&src_path, &new_path) {
                 println!("{} was renamed to {}", 
                          src_path.path_relative_from(&src_directory).unwrap().as_str().unwrap(), 
