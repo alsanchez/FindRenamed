@@ -47,15 +47,17 @@ fn main() {
     let dst_directory = Path::new(args[2].clone());
         
     let mut src_map = HashMap::<(u64, u64), Box<String>>::new();
-    examine_files(&Path::new(src_directory), &mut src_map);
+    examine_files(&Path::new(src_directory.clone()), &mut src_map);
     let mut new_map = HashMap::<(u64, u64), Box<String>>::new();
-    examine_files(&Path::new(dst_directory), &mut new_map);
+    examine_files(&Path::new(dst_directory.clone()), &mut new_map);
     for (key, value) in new_map.iter() {
         if src_map.contains_key(key) {
-            let src_path = *(src_map.get(key).clone());
-            let new_path = *(value.clone());
-            if compare_files(Path::new(src_path.clone()), Path::new(new_path.clone())) {
-                println!("{} was renamed to {}", src_path, new_path);
+            let src_path = Path::new(*src_map.get(key).clone());
+            let new_path = Path::new(*value.clone());
+            if compare_files(src_path.clone(), new_path.clone()) {
+                println!("{} was renamed to {}", 
+                         src_path.path_relative_from(&src_directory).unwrap().as_str().unwrap(), 
+                         new_path.path_relative_from(&dst_directory).unwrap().as_str().unwrap());
             }
         }
     }
