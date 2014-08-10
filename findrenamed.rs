@@ -25,9 +25,9 @@ fn examine_files(directory_path: &Path, map: &mut HashMap<(u64,u64), Box<String>
     }
 }
 
-fn compare_files(src_path: Path, new_path: Path) -> bool {
-    let mut src_file = File::open(&src_path);
-    let mut new_file = File::open(&new_path);
+fn compare_files(src_path: &Path, new_path: &Path) -> bool {
+    let mut src_file = File::open(src_path);
+    let mut new_file = File::open(new_path);
     let src_data = src_file.read_to_end();
     let new_data = new_file.read_to_end();
 
@@ -47,14 +47,14 @@ fn main() {
     let dst_directory = Path::new(args[2].clone());
         
     let mut src_map = HashMap::<(u64, u64), Box<String>>::new();
-    examine_files(&Path::new(src_directory.clone()), &mut src_map);
+    examine_files(&src_directory, &mut src_map);
     let mut new_map = HashMap::<(u64, u64), Box<String>>::new();
-    examine_files(&Path::new(dst_directory.clone()), &mut new_map);
+    examine_files(&dst_directory, &mut new_map);
     for (key, value) in new_map.iter() {
         if src_map.contains_key(key) {
             let src_path = Path::new(*src_map.get(key).clone());
             let new_path = Path::new(*value.clone());
-            if compare_files(src_path.clone(), new_path.clone()) {
+            if compare_files(&src_path, &new_path) {
                 println!("{} was renamed to {}", 
                          src_path.path_relative_from(&src_directory).unwrap().as_str().unwrap(), 
                          new_path.path_relative_from(&dst_directory).unwrap().as_str().unwrap());
