@@ -1,0 +1,5 @@
+[package]
+
+name = "findrenamed"
+version = "0.0.1"
+authors = ["Alejandro Sánchez <contacto@alsanchez.es>"]
