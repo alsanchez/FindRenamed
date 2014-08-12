@@ -3,3 +3,7 @@
 name = "findrenamed"
 version = "0.0.1"
 authors = ["Alejandro Sánchez <contacto@alsanchez.es>"]
+
+[dependencies.rust-crypto]
+
+git = "https://github.com/DaGenix/rust-crypto"

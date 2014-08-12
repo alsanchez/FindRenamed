@@ -1,4 +1,12 @@
 [root]
 name = "findrenamed"
 version = "0.0.1"
+dependencies = [
+ "rust-crypto 0.1.0 (git+https://github.com/DaGenix/rust-crypto#d1a34563f74fd4424bfd1291abdfc18997c315fc)",
+]
+
+[[package]]
+name = "rust-crypto"
+version = "0.1.0"
+source = "git+https://github.com/DaGenix/rust-crypto#d1a34563f74fd4424bfd1291abdfc18997c315fc"
 
