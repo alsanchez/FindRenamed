@@ -1,42 +1,23 @@
-use std::io::fs;
-use std::io::File;
 use std::collections::HashMap;
 use std::os;
+use std::vec::Vec;
 
-fn examine_files(directory_path: &Path, map: &mut HashMap<(u64,u64), String>) {
-
-    let entries = fs::readdir(directory_path);
-
-    if !entries.is_ok() {
-        return;
-    }
-
-    for entry in entries.unwrap().iter() {
-        if entry.is_dir() {
-            examine_files(entry, map);
-        } else {
-            let path = entry.as_str().unwrap();
-            let stat = entry.stat();
-            if stat.is_ok() {
-                let unwrapped_stat = stat.unwrap();
-                map.insert((unwrapped_stat.size, unwrapped_stat.modified), path.to_string());
-            }
-        }
-    }
-}
+mod util;
+mod server;
 
 fn compare_files(src_path: &Path, new_path: &Path) -> bool {
-    let mut src_file = File::open(src_path);
-    let mut new_file = File::open(new_path);
-    let src_data = src_file.read_to_end();
-    let new_data = new_file.read_to_end();
 
-    src_data == new_data
+    return util::get_file_checksum(src_path) == util::get_file_checksum(new_path);
 }
 
 fn main() {
 
     let args = os::args();
+
+    if args.len() == 2 && args[1] == "--start-server".to_string() {
+        server::start_server();
+        return;
+    }
 
     if args.len() != 3 {
         println!("Usage: {} <original-directory> <new-directory>", args[0]);
@@ -46,18 +27,36 @@ fn main() {
     let src_directory = Path::new(args[1].clone());
     let dst_directory = Path::new(args[2].clone());
         
-    let mut src_map = HashMap::<(u64, u64), String>::new();
-    examine_files(&src_directory, &mut src_map);
-    let mut new_map = HashMap::<(u64, u64), String>::new();
-    examine_files(&dst_directory, &mut new_map);
-    for (key, value) in new_map.iter() {
+    let mut src_map = HashMap::<(u64, u64), Vec<String>>::new();
+    util::examine_files(&src_directory, &mut src_map);
+    let mut new_map = HashMap::<(u64, u64), Vec<String>>::new();
+    util::examine_files(&dst_directory, &mut new_map);
+    for (key, paths) in new_map.iter() {
         if src_map.contains_key(key) {
-            let src_path = Path::new(src_map.get(key).clone());
-            let new_path = Path::new(value.clone());
-            if compare_files(&src_path, &new_path) {
-                println!("{} was renamed to {}", 
-                         src_path.path_relative_from(&src_directory).unwrap().as_str().unwrap(), 
-                         new_path.path_relative_from(&dst_directory).unwrap().as_str().unwrap());
+            for (i, value) in paths.iter().enumerate() {
+                let src_path = Path::new(src_map.get(key)[0].clone());
+                let new_path = Path::new(value.clone());
+                if compare_files(&src_path, &new_path) {
+
+                    let mut file_path = dst_directory.clone();
+                    file_path.push(src_path.path_relative_from(&src_directory).unwrap());
+
+                    if src_path.path_relative_from(&src_directory).unwrap()
+                        != new_path.path_relative_from(&dst_directory).unwrap() {
+
+                        if (file_path.exists() && compare_files(&src_path, &file_path)) 
+                            || (paths.len() > 1 && i < paths.len() - 1) {
+                            println!("{} was copied to {}", 
+                                     src_path.path_relative_from(&src_directory).unwrap().as_str().unwrap(), 
+                                     new_path.path_relative_from(&dst_directory).unwrap().as_str().unwrap());
+                        } else {
+                            println!("{} was renamed to {}", 
+                                     src_path.path_relative_from(&src_directory).unwrap().as_str().unwrap(), 
+                                     new_path.path_relative_from(&dst_directory).unwrap().as_str().unwrap());
+                        }
+
+                    }
+                }
             }
         }
     }
