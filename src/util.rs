@@ -41,7 +41,7 @@ pub fn get_file_checksum(file_path: &Path) -> String {
     loop {
         match file.read(buffer) {
             Ok(bytes) => { sha1.input(buffer.slice(0, bytes)) }
-            Err(e) => { break; }
+            Err(_) => { break; }
         }
     }
 

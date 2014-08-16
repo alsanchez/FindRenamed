@@ -5,11 +5,6 @@ use std::vec::Vec;
 mod util;
 mod server;
 
-fn compare_files(src_path: &Path, new_path: &Path) -> bool {
-
-    return util::get_file_checksum(src_path) == util::get_file_checksum(new_path);
-}
-
 fn main() {
 
     let args = os::args();
@@ -24,40 +19,71 @@ fn main() {
         return;
     }
 
+    let server = server::InMemoryServer::new();
     let src_directory = Path::new(args[1].clone());
     let dst_directory = Path::new(args[2].clone());
-        
-    let mut src_map = HashMap::<(u64, u64), Vec<String>>::new();
-    util::examine_files(&src_directory, &mut src_map);
-    let mut new_map = HashMap::<(u64, u64), Vec<String>>::new();
-    util::examine_files(&dst_directory, &mut new_map);
-    for (key, paths) in new_map.iter() {
-        if src_map.contains_key(key) {
-            for (i, value) in paths.iter().enumerate() {
-                let src_path = Path::new(src_map.get(key)[0].clone());
-                let new_path = Path::new(value.clone());
-                if compare_files(&src_path, &new_path) {
+    sync_renames(&server, &src_directory, &dst_directory);
+}
 
-                    let mut file_path = dst_directory.clone();
-                    file_path.push(src_path.path_relative_from(&src_directory).unwrap());
+fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &Path) {
 
-                    if src_path.path_relative_from(&src_directory).unwrap()
-                        != new_path.path_relative_from(&dst_directory).unwrap() {
+    let src_map = server.get_metadata(src_directory);
+    let new_map = server.get_metadata(dst_directory);
+    for (&(size, mod_date), paths) in new_map.iter() {
 
-                        if (file_path.exists() && compare_files(&src_path, &file_path)) 
-                            || (paths.len() > 1 && i < paths.len() - 1) {
-                            println!("{} was copied to {}", 
-                                     src_path.path_relative_from(&src_directory).unwrap().as_str().unwrap(), 
-                                     new_path.path_relative_from(&dst_directory).unwrap().as_str().unwrap());
-                        } else {
-                            println!("{} was renamed to {}", 
-                                     src_path.path_relative_from(&src_directory).unwrap().as_str().unwrap(), 
-                                     new_path.path_relative_from(&dst_directory).unwrap().as_str().unwrap());
-                        }
+        for (i, value) in paths.iter().enumerate() {
 
-                    }
-                }
+            let new_path = Path::new(value.clone());
+            let src_path :Path; 
+                
+            match find_matching_file(&new_path, size, mod_date, &src_map, server) {
+                Some(p) => src_path = p,
+                None => continue
+            }
+
+            let mut file_path = dst_directory.clone();
+            file_path.push(src_path.path_relative_from(src_directory).unwrap());
+
+            let src_relative_path = src_path.path_relative_from(src_directory).unwrap();
+            let dst_relative_path = new_path.path_relative_from(dst_directory).unwrap();
+
+            // No point in comparing a file with itself
+            if src_relative_path == dst_relative_path {
+                continue;
+            }
+
+            if (file_path.exists() && server.get_checksum(&src_path) == server.get_checksum(&file_path)) 
+                || (paths.len() > 1 && i < paths.len() - 1) {
+                println!("{} was copied to {}", src_relative_path.display(), dst_relative_path.display()); 
+            } else {
+                println!("{} was renamed to {}", src_relative_path.display(), dst_relative_path.display());
             }
         }
     }
+}
+
+fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_metadata: &HashMap<(u64, u64), Vec<String>>, server: &server::Server) -> Option<Path> {
+
+    // Check whether there are any files in master with the same
+    // size and modification date of the sought file
+    match master_metadata.find(&(size, modification_date)) {
+
+        Some(matches) => {
+
+            // Compare the file contents until we find a match, or return None if
+            // we don't find one
+            for potential_match in matches.iter() {
+                let path = Path::new(potential_match.clone());
+                if server.get_checksum(&path) == server.get_checksum(file) {
+                    return Some(path);
+                }
+            }
+
+            return None
+
+        }
+
+        None => return None
+    }
+
 }
