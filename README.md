@@ -1,15 +1,15 @@
 ### Info
 
-FindRenamed compares two directory trees and tries to detect files that have been renamed. This can be used to replicate the moves in a remote backup location and thus avoid potentially expensive network transfers.
+Mvsync compares two directory trees and tries to detect files that have been renamed. This can be used to replicate the moves in a remote backup location and thus avoid potentially expensive network transfers.
 
 ### Compile
 
-Download and install the nightly version of Rust from http://www.rust-lang.org/
+Download and install the nightly version of Rust and Cargo from http://crates.io/
 
 Compile with 
 
 ```sh
-rustc findrenamed.rs
+cargo build
 ```
 
 ### Usage
@@ -19,7 +19,7 @@ The first argument is usually the path to a older copy of your directory, while 
 Usage example:
 
 ```sh
-findrenamed ~/Backups/2014-08-01/Projects/MyAndroidApp ~/Projects/MyAndroidApp
+mvsync ~/Backups/2014-08-01/Projects/MyAndroidApp ~/Projects/MyAndroidApp
 ```
 
 Output example:
