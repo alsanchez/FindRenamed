@@ -1,3 +1,4 @@
+use std::io::fs::PathExtensions;
 use std::collections::HashMap;
 use std::os;
 use std::vec::Vec;

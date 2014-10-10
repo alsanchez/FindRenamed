@@ -1,6 +1,7 @@
-extern crate rust_crypto = "rust-crypto";
+extern crate "rust-crypto" as rust_crypto;
 
 use std::io::{fs, File};
+use std::io::fs::PathExtensions;
 use std::collections::HashMap;
 use std::vec::Vec;
 use self::rust_crypto::digest::Digest;
