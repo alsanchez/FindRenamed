@@ -33,6 +33,8 @@ fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &P
     let new_map = server.get_metadata(dst_directory);
     for (&(size, mod_date), paths) in new_map.iter() {
 
+        let mut matching_paths = 0i;
+
         for (i, value) in paths.iter().enumerate() {
 
             let new_path = Path::new(value.clone());
@@ -55,8 +57,9 @@ fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &P
                 continue;
             }
 
-            if (file_path.exists() && server.get_checksum(&src_path) == server.get_checksum(&file_path)) 
-                || (paths.len() > 1 && i < paths.len() - 1) {
+            matching_paths += 1;
+
+            if matching_paths > 1 && file_path.exists() && server.get_checksum(&src_path) == server.get_checksum(&file_path) {
                 println!("{} was copied to {}", src_relative_path.display(), dst_relative_path.display()); 
 
             } else {

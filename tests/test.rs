@@ -5,7 +5,6 @@ use std::io::fs::rename;
 use std::io::TempDir;
 use std::io::fs::PathExtensions;
 use std::io::Command;
-use std::str;
 
 #[test]
 fn test_renames() {
