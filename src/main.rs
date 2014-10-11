@@ -1,3 +1,4 @@
+use std::io::fs::rename;
 use std::io::fs::PathExtensions;
 use std::collections::HashMap;
 use std::os;
@@ -36,6 +37,7 @@ fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &P
 
             let new_path = Path::new(value.clone());
             let src_path :Path; 
+
                 
             match find_matching_file(&new_path, size, mod_date, &src_map, server) {
                 Some(p) => src_path = p,
@@ -56,8 +58,12 @@ fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &P
             if (file_path.exists() && server.get_checksum(&src_path) == server.get_checksum(&file_path)) 
                 || (paths.len() > 1 && i < paths.len() - 1) {
                 println!("{} was copied to {}", src_relative_path.display(), dst_relative_path.display()); 
+
             } else {
                 println!("{} was renamed to {}", src_relative_path.display(), dst_relative_path.display());
+                rename(
+                    &src_directory.join(src_relative_path),
+                    &src_directory.join(dst_relative_path)).unwrap();
             }
         }
     }
@@ -88,3 +94,4 @@ fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_met
     }
 
 }
+
