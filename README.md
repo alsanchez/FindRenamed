@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/alsanchez/mvsync.png?branch=master)](https://travis-ci.org/alsanchez/mvsync)
+
 ### Info
 
 Mvsync compares two directory trees and tries to detect files that have been renamed. This can be used to replicate the moves in a remote backup location and thus avoid potentially expensive network transfers.
