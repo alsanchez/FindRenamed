@@ -6,5 +6,4 @@ authors = ["Alejandro Sánchez <contacto@alsanchez.es>"]
 
 [dependencies.rust-crypto]
 
-#git = "https://github.com/DaGenix/rust-crypto"
-git = "https://github.com/alsanchez/rust-crypto"
+git = "https://github.com/DaGenix/rust-crypto"

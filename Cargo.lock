@@ -2,11 +2,11 @@
 name = "mvsync"
 version = "0.0.1"
 dependencies = [
- "rust-crypto 0.1.0 (git+https://github.com/alsanchez/rust-crypto#c528b1cf4626c596bb21d7646039dfac93ace933)",
+ "rust-crypto 0.1.0 (git+https://github.com/DaGenix/rust-crypto#12e28a90f5432504302051b65967736761913ee2)",
 ]
 
 [[package]]
 name = "rust-crypto"
 version = "0.1.0"
-source = "git+https://github.com/alsanchez/rust-crypto#c528b1cf4626c596bb21d7646039dfac93ace933"
+source = "git+https://github.com/DaGenix/rust-crypto#12e28a90f5432504302051b65967736761913ee2"
 
