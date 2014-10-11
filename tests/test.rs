@@ -2,6 +2,8 @@ use std::io::File;
 use std::io::fs::walk_dir;
 use std::io::fs::copy;
 use std::io::fs::rename;
+use std::io::fs::stat;
+use std::io::fs::change_file_times;
 use std::io::TempDir;
 use std::io::fs::PathExtensions;
 use std::io::Command;
@@ -21,12 +23,12 @@ fn test_renames() {
     copy_directory_contents(original_directory.path(), new_directory.path());
 
     // Rename some of the files of the original directory
-    rename(
+    rename_keeping_modified_time(
         &original_directory.path().join("file1"),
-        &original_directory.path().join("file7")).unwrap();
-    rename(
+        &original_directory.path().join("file7"));
+    rename_keeping_modified_time(
         &original_directory.path().join("file2"),
-        &original_directory.path().join("file11")).unwrap();
+        &original_directory.path().join("file11"));
 
     // Run mvsync
     let output = match Command::new("./target/mvsync")
@@ -63,7 +65,16 @@ fn copy_directory_contents(source: &Path, destination: &Path) {
        let relative_path = item.path_relative_from(source).unwrap();
        let destination_path = destination.join(relative_path);
        copy(&item, &destination_path).unwrap();
+       let metadata = stat(&item).unwrap();
+       change_file_times(&item, metadata.accessed, metadata.modified).unwrap();
+       change_file_times(&destination_path, metadata.accessed, metadata.modified).unwrap();
    }
 
 }
 
+fn rename_keeping_modified_time(source: &Path, destination: &Path) {
+
+    let metadata = stat(source).unwrap();
+    rename(source, destination).unwrap();
+    change_file_times(destination, metadata.accessed, metadata.modified).unwrap();
+}

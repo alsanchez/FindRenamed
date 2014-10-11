@@ -31,6 +31,7 @@ fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &P
 
     let src_map = server.get_metadata(src_directory);
     let new_map = server.get_metadata(dst_directory);
+
     for (&(size, mod_date), paths) in new_map.iter() {
 
         let mut matching_paths = 0i;
@@ -40,7 +41,6 @@ fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &P
             let new_path = Path::new(value.clone());
             let src_path :Path; 
 
-                
             match find_matching_file(&new_path, size, mod_date, &src_map, server) {
                 Some(p) => src_path = p,
                 None => continue
