@@ -35,6 +35,7 @@ fn main() {
     let mut ssh_port = 22i;
     let host: String;
     let source_path: String;
+    let verbose = args.contains(&"--verbose".to_string());
 
     if args.contains(&"--ssh-port".to_string()) {
         let index = args.iter().position(|a| a == &"--ssh-port".to_string()).unwrap();
@@ -57,18 +58,24 @@ fn main() {
     if remote_source || use_external_process {
         let mut server = server::StdServer::new(host, ssh_port);
         let mut dest_server = server::InMemoryServer::new();
-        sync_renames(dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
+        sync_renames(verbose, dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
     }
     else {
         let mut server = server::InMemoryServer::new();
         let mut dest_server = server::InMemoryServer::new();
-        sync_renames(dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
+        sync_renames(verbose, dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
     }
 }
 
-fn sync_renames(dry_run: bool, source_server: &mut server::Server, dest_server: &mut server::Server, src_directory: &Path, dst_directory: &Path) {
+fn sync_renames(verbose: bool, dry_run: bool, source_server: &mut server::Server, dest_server: &mut server::Server, src_directory: &Path, dst_directory: &Path) {
 
+    if verbose {
+        println!("Getting source metadata...");
+    }
     let src_map = source_server.get_metadata(src_directory);
+    if verbose {
+        println!("Getting destination metadata...");
+    }
     let new_map = dest_server.get_metadata(dst_directory);
 
     for (&(size, mod_date), paths) in new_map.iter() {
@@ -80,7 +87,7 @@ fn sync_renames(dry_run: bool, source_server: &mut server::Server, dest_server: 
             let new_path = Path::new(value.clone());
             let src_path :Path;
 
-            match find_matching_file(&new_path, size, mod_date, &src_map, source_server, dest_server) {
+            match find_matching_file(verbose, &new_path, size, mod_date, &src_map, source_server, dest_server) {
                 Some(p) => src_path = p,
                 None => continue
             }
@@ -113,7 +120,7 @@ fn sync_renames(dry_run: bool, source_server: &mut server::Server, dest_server: 
     }
 }
 
-fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_metadata: &HashMap<(u64, u64), Vec<String>>, src_server: &mut server::Server, dest_server: &mut server::Server) -> Option<Path> {
+fn find_matching_file(verbose: bool, file: &Path, size: u64, modification_date: u64, master_metadata: &HashMap<(u64, u64), Vec<String>>, src_server: &mut server::Server, dest_server: &mut server::Server) -> Option<Path> {
 
     // Check whether there are any files in master with the same
     // size and modification date of the sought file
@@ -125,7 +132,15 @@ fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_met
             // we don't find one
             for potential_match in matches.iter() {
                 let path = Path::new(potential_match.clone());
-                if src_server.get_checksum(&path) == dest_server.get_checksum(file) {
+                if verbose {
+                    println!("Getting checksum for source file '{}'...", path.as_str());
+                }
+                let src_checksum = src_server.get_checksum(&path);
+                if verbose {
+                    println!("Getting checksum for destination file '{}'...", path.as_str());
+                }
+                let dest_checksum = dest_server.get_checksum(file);
+                if src_checksum == dest_checksum {
                     return Some(path);
                 }
             }
