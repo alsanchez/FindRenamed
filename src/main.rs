@@ -36,6 +36,7 @@ fn main() {
     let host: String;
     let source_path: String;
     let verbose = args.contains(&"--verbose".to_string());
+    let checksums = !args.contains(&"--no-checksums".to_string());
 
     if args.contains(&"--ssh-port".to_string()) {
         let index = args.iter().position(|a| a == &"--ssh-port".to_string()).unwrap();
@@ -58,16 +59,18 @@ fn main() {
     if remote_source || use_external_process {
         let mut server = server::StdServer::new(host, ssh_port);
         let mut dest_server = server::InMemoryServer::new();
-        sync_renames(verbose, dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
+        sync_renames(checksums, verbose, dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
     }
     else {
         let mut server = server::InMemoryServer::new();
         let mut dest_server = server::InMemoryServer::new();
-        sync_renames(verbose, dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
+        sync_renames(checksums, verbose, dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
     }
 }
 
-fn sync_renames(verbose: bool, dry_run: bool, source_server: &mut server::Server, dest_server: &mut server::Server, src_directory: &Path, dst_directory: &Path) {
+fn sync_renames(checksums:bool, verbose: bool, dry_run: bool, source_server: &mut server::Server, dest_server: &mut server::Server, src_directory: &Path, dst_directory: &Path) {
+
+    let mut renames: Vec<(Path, Path)> = Vec::new();
 
     if verbose {
         println!("Getting source metadata...");
@@ -87,7 +90,7 @@ fn sync_renames(verbose: bool, dry_run: bool, source_server: &mut server::Server
             let new_path = Path::new(value.clone());
             let src_path :Path;
 
-            match find_matching_file(verbose, &new_path, size, mod_date, &src_map, source_server, dest_server) {
+            match find_matching_file(src_directory, dst_directory, checksums, verbose, &new_path, size, mod_date, &src_map, source_server, dest_server) {
                 Some(p) => src_path = p,
                 None => continue
             }
@@ -98,11 +101,6 @@ fn sync_renames(verbose: bool, dry_run: bool, source_server: &mut server::Server
             let src_relative_path = src_path.path_relative_from(src_directory).unwrap();
             let dst_relative_path = new_path.path_relative_from(dst_directory).unwrap();
 
-            // No point in comparing a file with itself
-            if src_relative_path == dst_relative_path {
-                continue;
-            }
-
             matching_paths += 1;
 
             if matching_paths > 1 && file_path.exists() && source_server.get_checksum(&src_path) == dest_server.get_checksum(&file_path) {
@@ -110,17 +108,21 @@ fn sync_renames(verbose: bool, dry_run: bool, source_server: &mut server::Server
 
             } else {
                 println!("{} was renamed to {}", dst_relative_path.display(), src_relative_path.display());
-                if !dry_run {
-                    rename(
-                        &dst_directory.join(dst_relative_path),
-                        &dst_directory.join(src_relative_path)).unwrap();
-                } 
+                renames.push(
+                    (dst_directory.join(dst_relative_path),
+                    dst_directory.join(src_relative_path)));
             }
+        }
+    }
+
+    if !dry_run {
+        for &(ref old, ref new) in renames.iter() {
+            rename(old, new).unwrap();
         }
     }
 }
 
-fn find_matching_file(verbose: bool, file: &Path, size: u64, modification_date: u64, master_metadata: &HashMap<(u64, u64), Vec<String>>, src_server: &mut server::Server, dest_server: &mut server::Server) -> Option<Path> {
+fn find_matching_file(src_directory: &Path, dst_directory: &Path, checksums: bool, verbose: bool, file: &Path, size: u64, modification_date: u64, master_metadata: &HashMap<(u64, u64), Vec<String>>, src_server: &mut server::Server, dest_server: &mut server::Server) -> Option<Path> {
 
     // Check whether there are any files in master with the same
     // size and modification date of the sought file
@@ -131,13 +133,27 @@ fn find_matching_file(verbose: bool, file: &Path, size: u64, modification_date: 
             // Compare the file contents until we find a match, or return None if
             // we don't find one
             for potential_match in matches.iter() {
+
                 let path = Path::new(potential_match.clone());
+
+                let src_relative_path = path.path_relative_from(src_directory).unwrap();
+                let dst_relative_path = file.path_relative_from(dst_directory).unwrap();
+
+                // No point in comparing a file with itself
+                if src_relative_path == dst_relative_path {
+                    continue;
+                }
+
+                if !checksums {
+                    return Some(path);
+                }
+
                 if verbose {
                     println!("Getting checksum for source file '{}'...", path.as_str());
                 }
                 let src_checksum = src_server.get_checksum(&path);
                 if verbose {
-                    println!("Getting checksum for destination file '{}'...", path.as_str());
+                    println!("Getting checksum for destination file '{}'...", file.as_str());
                 }
                 let dest_checksum = dest_server.get_checksum(file);
                 if src_checksum == dest_checksum {
