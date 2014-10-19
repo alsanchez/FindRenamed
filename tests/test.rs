@@ -18,6 +18,19 @@ fn test_renames_via_external_process() {
     test_renames("--use-external-process");
 }
 
+#[test]
+fn test_incorrect_option() {
+
+    let mut process = Command::new("./target/mvsync")
+        .arg("/source")
+        .arg("/destination")
+        .arg("--this-flag-does-not-exists")
+        .spawn()
+        .unwrap();
+
+   assert!(process.wait().unwrap().success() == false);
+}
+
 fn test_renames<T: ToCStr>(argument: T) {
 
     // Create a temporary directory and write some
