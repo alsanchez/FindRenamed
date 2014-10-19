@@ -20,14 +20,14 @@ pub struct StdServer {
 }
 
 impl StdServer {
-    pub fn new(host: String) -> StdServer {
+    pub fn new(host: String, ssh_port: int) -> StdServer {
 
         let mut process: Process;
 
         if host.as_slice() == "" {
             process = Command::new(self_exe_name().unwrap().as_str().unwrap()).arg("--server").spawn().unwrap();
         } else {
-            process = Command::new("ssh").arg(host).arg("mvsync --server").spawn().unwrap();
+            process = Command::new("ssh").arg(format!("-p{}", ssh_port)).arg(host).arg("mvsync --server").spawn().unwrap();
         }
 
         StdServer { process: process }

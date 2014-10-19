@@ -32,8 +32,14 @@ fn main() {
 
     let remote_source = args[1].as_slice().contains(":");
     let dry_run = args.contains(&"--dry-run".to_string());
+    let mut ssh_port = 22i;
     let host: String;
     let source_path: String;
+
+    if args.contains(&"--ssh-port".to_string()) {
+        let index = args.iter().position(|a| a == &"--ssh-port".to_string()).unwrap();
+        ssh_port = from_str(args.get(index + 1).as_slice()).unwrap();
+    }
 
     if remote_source {
         let components: Vec<&str> = args[1].as_slice().split(':').collect();
@@ -49,7 +55,7 @@ fn main() {
     let dst_directory = Path::new(args[2].clone());
 
     if remote_source || use_external_process {
-        let mut server = server::StdServer::new(host);
+        let mut server = server::StdServer::new(host, ssh_port);
         let mut dest_server = server::InMemoryServer::new();
         sync_renames(dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
     }
