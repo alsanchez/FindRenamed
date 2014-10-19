@@ -2,7 +2,9 @@ use std::io::fs::rename;
 use std::io::fs::PathExtensions;
 use std::collections::HashMap;
 use std::os;
+use std::io;
 use std::vec::Vec;
+use std::str::StrSlice;
 
 mod util;
 mod server;
@@ -11,23 +13,37 @@ fn main() {
 
     let args = os::args();
 
+    if args.len() == 2 && args[1] == "--server".to_string() {
+        serve(); 
+        return;
+    }
+
     if args.len() == 2 && args[1] == "--start-server".to_string() {
         server::start_server();
         return;
     }
 
-    if args.len() != 3 {
+    let use_external_process = args.contains(&String::from_str("--use-external-process"));
+
+    if args.len() < 3 {
         println!("Usage: {} <original-directory> <new-directory>", args[0]);
         return;
     }
 
-    let server = server::InMemoryServer::new();
     let src_directory = Path::new(args[1].clone());
     let dst_directory = Path::new(args[2].clone());
-    sync_renames(&server, &src_directory, &dst_directory);
+
+    if use_external_process {
+        let mut server = server::StdServer::new();
+        sync_renames(&mut server, &src_directory, &dst_directory);
+    }
+    else {
+        let mut server = server::InMemoryServer::new();
+        sync_renames(&mut server, &src_directory, &dst_directory);
+    }
 }
 
-fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &Path) {
+fn sync_renames(server: &mut server::Server, src_directory: &Path, dst_directory: &Path) {
 
     let src_map = server.get_metadata(src_directory);
     let new_map = server.get_metadata(dst_directory);
@@ -39,7 +55,7 @@ fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &P
         for (i, value) in paths.iter().enumerate() {
 
             let new_path = Path::new(value.clone());
-            let src_path :Path; 
+            let src_path :Path;
 
             match find_matching_file(&new_path, size, mod_date, &src_map, server) {
                 Some(p) => src_path = p,
@@ -72,7 +88,7 @@ fn sync_renames(server: &server::Server, src_directory: &Path, dst_directory: &P
     }
 }
 
-fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_metadata: &HashMap<(u64, u64), Vec<String>>, server: &server::Server) -> Option<Path> {
+fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_metadata: &HashMap<(u64, u64), Vec<String>>, server: &mut server::Server) -> Option<Path> {
 
     // Check whether there are any files in master with the same
     // size and modification date of the sought file
@@ -98,3 +114,28 @@ fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_met
 
 }
 
+fn serve() {
+
+    for line in io::stdin().lines() {
+        let unwrapped_line = line.unwrap();
+        let line_slice = unwrapped_line.as_slice().trim_right_chars('\n');
+        if line_slice.starts_with("checksum ") {
+           let file_name = line_slice.slice_from(9); 
+           println!("{}", util::get_file_checksum(&Path::new(file_name)));
+           println!("\0");
+        }
+
+        if line_slice.starts_with("metadata ") {
+            let path = line_slice.slice_from(9);
+            for metadata in util::MetadataReader::new(&Path::new(path)) { 
+                println!("{}", metadata.path);
+                println!("{}", metadata.size);
+                println!("{}", metadata.modified);
+            }
+            println!("\0");
+
+        }
+
+        
+    }
+}

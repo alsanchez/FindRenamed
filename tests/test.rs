@@ -9,7 +9,16 @@ use std::io::fs::PathExtensions;
 use std::io::Command;
 
 #[test]
-fn test_renames() {
+fn test_renames_via_single_process() {
+    test_renames("");
+}
+
+#[test]
+fn test_renames_via_external_process() {
+    test_renames("--use-external-process");
+}
+
+fn test_renames<T: ToCStr>(argument: T) {
 
     // Create a temporary directory and write some
     // files into it
@@ -31,16 +40,47 @@ fn test_renames() {
         &original_directory.path().join("file11"));
 
     // Run mvsync
-    let output = match Command::new("./target/mvsync")
+    let mut process = match Command::new("./target/mvsync")
         .arg(new_directory.path().as_str().unwrap())
-        .arg(original_directory.path().as_str().unwrap()).output() {
-            Ok(output) => output,
+        .arg(original_directory.path().as_str().unwrap()) 
+        .arg(argument)
+        .spawn()
+        {
+            Ok(process) => process,
             Err(e) => fail!("failed to execute process: {}", e),
-    };
+        };
 
-    println!("status: {}", output.status);
-    println!("stdout: {}", String::from_utf8_lossy(output.output.as_slice()));
-    println!("stderr: {}", String::from_utf8_lossy(output.error.as_slice()));
+    // Set a timeout of 4 seconds
+    process.set_timeout(Some(4_000));
+
+    match process.wait()
+    {
+        Ok(status) => 
+        {
+            println!("{}", process.stdout.as_mut().unwrap().read_to_string().unwrap());
+            println!("{}", process.stderr.as_mut().unwrap().read_to_string().unwrap());
+        },
+        Err(e) => 
+        {
+            process.signal_kill();
+            println!("{}", process.stdout.as_mut().unwrap().read_to_string().unwrap());
+            println!("{}", process.stderr.as_mut().unwrap().read_to_string().unwrap());
+            fail!("failed to execute process: {}", e)
+        }
+    }
+
+    // Get the output
+    //let output = match process.wait_with_output()
+    //{
+    //    Ok(output) => output,
+    //    Err(e) => {
+    //        fail!("process timemout: {}", e);
+    //    }
+    //};
+
+    //println!("status: {}", output.status);
+    //println!("stdout: {}", String::from_utf8_lossy(output.output.as_slice()));
+    //println!("stderr: {}", String::from_utf8_lossy(output.error.as_slice()));
     
     // Verify that the new directory contents have been renamed
     // accordingly
@@ -48,7 +88,6 @@ fn test_renames() {
     assert!(new_directory.path().join("file2").exists() == false);    
     assert!(new_directory.path().join("file7").exists() == true);    
     assert!(new_directory.path().join("file11").exists() == true);    
-    
 }
 
 fn write_file(directory: &Path, file_name: String, contents: String) {

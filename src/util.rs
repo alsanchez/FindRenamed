@@ -2,10 +2,40 @@ extern crate "rust-crypto" as rust_crypto;
 
 use std::io::{fs, File};
 use std::io::fs::PathExtensions;
+use std::io::fs::Directories;
 use std::collections::HashMap;
 use std::vec::Vec;
 use self::rust_crypto::digest::Digest;
 use self::rust_crypto::sha1::Sha1;
+
+pub struct Metadata {
+    pub path: String,
+    pub size: u64,
+    pub modified: u64
+}
+
+pub struct MetadataReader {
+    directory_iterator: Directories
+}
+
+impl MetadataReader {
+    pub fn new(path: &Path) -> MetadataReader {
+        let iterator = fs::walk_dir(path).unwrap();
+        MetadataReader { directory_iterator: iterator }
+    }
+}
+
+impl Iterator<Metadata> for MetadataReader {
+
+    fn next(&mut self) -> Option<Metadata> {
+        let path = match self.directory_iterator.next() {
+            Some(p) => p,
+            None => return None
+        };
+        let stat = path.stat().unwrap();
+        Some(Metadata { path: from_str(path.as_str().unwrap()).unwrap(), size: stat.size, modified: stat.modified })
+    }
+}
 
 pub fn examine_files(directory_path: &Path, map: &mut HashMap<(u64,u64), Vec<String>>) {
 
