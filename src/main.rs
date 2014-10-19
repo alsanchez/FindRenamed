@@ -31,6 +31,7 @@ fn main() {
     }
 
     let remote_source = args[1].as_slice().contains(":");
+    let dry_run = args.contains(&"--dry-run".to_string());
     let host: String;
     let source_path: String;
 
@@ -50,16 +51,16 @@ fn main() {
     if remote_source || use_external_process {
         let mut server = server::StdServer::new(host);
         let mut dest_server = server::InMemoryServer::new();
-        sync_renames(&mut server, &mut dest_server, &src_directory, &dst_directory);
+        sync_renames(dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
     }
     else {
         let mut server = server::InMemoryServer::new();
         let mut dest_server = server::InMemoryServer::new();
-        sync_renames(&mut server, &mut dest_server, &src_directory, &dst_directory);
+        sync_renames(dry_run, &mut server, &mut dest_server, &src_directory, &dst_directory);
     }
 }
 
-fn sync_renames(source_server: &mut server::Server, dest_server: &mut server::Server, src_directory: &Path, dst_directory: &Path) {
+fn sync_renames(dry_run: bool, source_server: &mut server::Server, dest_server: &mut server::Server, src_directory: &Path, dst_directory: &Path) {
 
     let src_map = source_server.get_metadata(src_directory);
     let new_map = dest_server.get_metadata(dst_directory);
@@ -96,9 +97,11 @@ fn sync_renames(source_server: &mut server::Server, dest_server: &mut server::Se
 
             } else {
                 println!("{} was renamed to {}", dst_relative_path.display(), src_relative_path.display());
-                rename(
-                    &dst_directory.join(dst_relative_path),
-                    &dst_directory.join(src_relative_path)).unwrap();
+                if !dry_run {
+                    rename(
+                        &dst_directory.join(dst_relative_path),
+                        &dst_directory.join(src_relative_path)).unwrap();
+                } 
             }
         }
     }
