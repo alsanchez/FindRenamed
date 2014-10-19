@@ -16,12 +16,12 @@ cargo build
 
 ### Usage
 
-The first argument is usually the path to a older copy of your directory, while the second one is the path to the current directory where files have been renamed.
+The first argument is the path to the current directory where files have been renamed, while the second one is usually the path to a older copy of your directory.
 
 Usage example:
 
 ```sh
-mvsync ~/Backups/2014-08-01/Projects/MyAndroidApp ~/Projects/MyAndroidApp
+mvsync ~/Projects/MyAndroidApp ~/Backups/Projects/MyAndroidApp
 ```
 
 Output example:

@@ -20,8 +20,16 @@ pub struct StdServer {
 }
 
 impl StdServer {
-    pub fn new() -> StdServer {
-        let mut process = Command::new(self_exe_name().unwrap().as_str().unwrap()).arg("--server").spawn().unwrap();
+    pub fn new(host: String) -> StdServer {
+
+        let mut process: Process;
+
+        if host.as_slice() == "" {
+            process = Command::new(self_exe_name().unwrap().as_str().unwrap()).arg("--server").spawn().unwrap();
+        } else {
+            process = Command::new("ssh").arg(host).arg("mvsync --server").spawn().unwrap();
+        }
+
         StdServer { process: process }
     }
 
@@ -30,16 +38,21 @@ impl StdServer {
         let mut output_pipe = self.process.stdout.as_mut().unwrap();
         let mut buffer: [u8, ..1024] = [0,..1024];
         let mut output: Vec<u8> = Vec::new();
-        let mut readBytes = output_pipe.read(&mut buffer).unwrap();
-        output.push_all(buffer.slice(0, readBytes));
-        while buffer.slice_to(readBytes-1).last() != Some(&0u8)
-        {
+
+        let mut readBytes;
+
+        loop {
             readBytes = match output_pipe.read(buffer)
             {
                 Ok(r) => r,
-                Err(e) => fail!("Error")
+                Err(e) => fail!("{}", e)
             };
+
             output.push_all(buffer.slice(0, readBytes));
+
+            if buffer.slice_to(readBytes-1).last() == Some(&0u8) {
+                break;
+            }
         }
         output.pop();
 
@@ -53,7 +66,10 @@ impl Server for StdServer {
     {
         self.process.stdin.as_mut().unwrap().write_str("checksum ");
         self.process.stdin.as_mut().unwrap().write_line(file_path.as_str().unwrap());
-        self.read_until_the_end()
+
+        let checksum = self.read_until_the_end().replace("\n", "").replace("\0","");
+
+        checksum
     }
 
     fn get_metadata(&mut self, directory_path: &Path) -> HashMap<(u64, u64), Vec<String>>

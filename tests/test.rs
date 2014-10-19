@@ -41,8 +41,8 @@ fn test_renames<T: ToCStr>(argument: T) {
 
     // Run mvsync
     let mut process = match Command::new("./target/mvsync")
-        .arg(new_directory.path().as_str().unwrap())
-        .arg(original_directory.path().as_str().unwrap()) 
+        .arg(original_directory.path().as_str().unwrap())
+        .arg(new_directory.path().as_str().unwrap()) 
         .arg(argument)
         .spawn()
         {

@@ -30,23 +30,39 @@ fn main() {
         return;
     }
 
-    let src_directory = Path::new(args[1].clone());
+    let remote_source = args[1].as_slice().contains(":");
+    let host: String;
+    let source_path: String;
+
+    if remote_source {
+        let components: Vec<&str> = args[1].as_slice().split(':').collect();
+        host = components[0].to_string();
+        source_path = components[1].to_string();
+    }
+    else {
+        source_path = args[1].clone();
+        host = "".to_string();
+    }
+
+    let src_directory = Path::new(source_path);
     let dst_directory = Path::new(args[2].clone());
 
-    if use_external_process {
-        let mut server = server::StdServer::new();
-        sync_renames(&mut server, &src_directory, &dst_directory);
+    if remote_source || use_external_process {
+        let mut server = server::StdServer::new(host);
+        let mut dest_server = server::InMemoryServer::new();
+        sync_renames(&mut server, &mut dest_server, &src_directory, &dst_directory);
     }
     else {
         let mut server = server::InMemoryServer::new();
-        sync_renames(&mut server, &src_directory, &dst_directory);
+        let mut dest_server = server::InMemoryServer::new();
+        sync_renames(&mut server, &mut dest_server, &src_directory, &dst_directory);
     }
 }
 
-fn sync_renames(server: &mut server::Server, src_directory: &Path, dst_directory: &Path) {
+fn sync_renames(source_server: &mut server::Server, dest_server: &mut server::Server, src_directory: &Path, dst_directory: &Path) {
 
-    let src_map = server.get_metadata(src_directory);
-    let new_map = server.get_metadata(dst_directory);
+    let src_map = source_server.get_metadata(src_directory);
+    let new_map = dest_server.get_metadata(dst_directory);
 
     for (&(size, mod_date), paths) in new_map.iter() {
 
@@ -57,7 +73,7 @@ fn sync_renames(server: &mut server::Server, src_directory: &Path, dst_directory
             let new_path = Path::new(value.clone());
             let src_path :Path;
 
-            match find_matching_file(&new_path, size, mod_date, &src_map, server) {
+            match find_matching_file(&new_path, size, mod_date, &src_map, source_server, dest_server) {
                 Some(p) => src_path = p,
                 None => continue
             }
@@ -75,20 +91,20 @@ fn sync_renames(server: &mut server::Server, src_directory: &Path, dst_directory
 
             matching_paths += 1;
 
-            if matching_paths > 1 && file_path.exists() && server.get_checksum(&src_path) == server.get_checksum(&file_path) {
-                println!("{} was copied to {}", src_relative_path.display(), dst_relative_path.display()); 
+            if matching_paths > 1 && file_path.exists() && source_server.get_checksum(&src_path) == dest_server.get_checksum(&file_path) {
+                println!("{} was copied to {}", dst_relative_path.display(), src_relative_path.display()); 
 
             } else {
-                println!("{} was renamed to {}", src_relative_path.display(), dst_relative_path.display());
+                println!("{} was renamed to {}", dst_relative_path.display(), src_relative_path.display());
                 rename(
-                    &src_directory.join(src_relative_path),
-                    &src_directory.join(dst_relative_path)).unwrap();
+                    &dst_directory.join(dst_relative_path),
+                    &dst_directory.join(src_relative_path)).unwrap();
             }
         }
     }
 }
 
-fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_metadata: &HashMap<(u64, u64), Vec<String>>, server: &mut server::Server) -> Option<Path> {
+fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_metadata: &HashMap<(u64, u64), Vec<String>>, src_server: &mut server::Server, dest_server: &mut server::Server) -> Option<Path> {
 
     // Check whether there are any files in master with the same
     // size and modification date of the sought file
@@ -100,7 +116,7 @@ fn find_matching_file(file: &Path, size: u64, modification_date: u64, master_met
             // we don't find one
             for potential_match in matches.iter() {
                 let path = Path::new(potential_match.clone());
-                if server.get_checksum(&path) == server.get_checksum(file) {
+                if src_server.get_checksum(&path) == dest_server.get_checksum(file) {
                     return Some(path);
                 }
             }
